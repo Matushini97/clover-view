@@ -23,6 +23,7 @@
     "dist"
   ],
   "scripts": {
+    "prepare": "husky",
     "build": "rollup -c",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -44,6 +45,15 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{js,mjs,cjs,json,md,yml,yaml,css,scss}": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -67,7 +77,9 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-storybook": "^10.6.2",
     "globals": "^17.13.0",
+    "husky": "^9.1.7",
     "jsdom": "^29.1.1",
+    "lint-staged": "^17.6.0",
     "playwright": "latest",
     "prettier": "^3.9.10",
     "react": "^19.3.0",
