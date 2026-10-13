@@ -34,6 +34,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage --project=unit",
+    "test:visual": "playwright test",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "changeset": "changeset",
@@ -58,6 +59,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.64.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@storybook/addon-a11y": "^10.6.2",
     "@storybook/addon-docs": "^10.6.2",

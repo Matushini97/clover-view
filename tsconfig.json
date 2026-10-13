@@ -18,5 +18,12 @@
     "declaration": true,
     "noEmit": true
   },
-  "include": ["src", ".storybook", "vitest.setup.ts", "vitest.config.ts"]
+  "include": [
+    "src",
+    ".storybook",
+    "vitest.setup.ts",
+    "vitest.config.ts",
+    "playwright.config.ts",
+    "tests"
+  ]
 }

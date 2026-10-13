@@ -1,0 +1,17 @@
+/* Стабилизация визуальных тестов: отключаем анимации и переходы */
+*,
+*::before,
+*::after {
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+  caret-color: transparent !important;
+}
+
+/* Одинаковое сглаживание текста на всех платформах */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
