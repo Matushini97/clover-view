@@ -145,3 +145,4 @@ Pre-commit (husky + lint-staged): авто-fix lint/формата по staged-�
 Подробная схема CI/CD — в [docs/cicd-theory.md](docs/cicd-theory.md).
 
 cunc2
+cunc1
