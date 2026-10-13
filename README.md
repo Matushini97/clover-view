@@ -143,3 +143,5 @@ Pre-commit (husky + lint-staged): авто-fix lint/формата по staged-�
 3. после merge в `main` версии и changelog обновляются автоматически.
 
 Подробная схема CI/CD — в [docs/cicd-theory.md](docs/cicd-theory.md).
+
+test line
