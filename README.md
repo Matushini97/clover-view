@@ -100,14 +100,39 @@ const [email, setEmail] = useState('');
 ## Разработка
 
 ```bash
-npm install          # установка зависимостей (подключает git-хуки)
-npm run storybook    # Storybook на http://localhost:6006
-npm run build        # сборка библиотеки в dist/
-npm run test         # unit-тесты (Vitest)
-npm run typecheck    # проверка типов
-npm run lint         # ESLint
-npm run format       # Prettier
+npm install              # установка зависимостей (подключает git-хуки)
+npm run storybook        # Storybook на http://localhost:6006
+npm run build            # сборка библиотеки в dist/
+npm run test             # unit-тесты (Vitest + тесты stories)
+npm run test:coverage    # unit-тесты с покрытием
+npm run test:visual      # скриншотные тесты (Playwright против Storybook)
+npm run typecheck        # проверка типов
+npm run lint             # ESLint
+npm run format           # Prettier
 ```
+
+Pre-commit (husky + lint-staged): авто-fix lint/формата по staged-файлам + прогон unit-тестов.
+
+## CI (GitHub Actions)
+
+| Workflow                      | Триггер                       | Что делает                                                                                                                                                        |
+| ----------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ci.yml`                      | `pull_request` → `main`       | Install → параллельно Lint, Typecheck, Unit tests, Build (lib + Storybook + `npm pack`), Visual tests; при падении — артефакты (coverage, скриншоты-диффы, trace) |
+| `update-visual-snapshots.yml` | `workflow_dispatch` (вручную) | Пересъёмка эталонов скриншотов на ubuntu и коммит в выбранную ветку (`[skip ci]`)                                                                                 |
+
+Публикация пакета и деплой Storybook на обычном PR не выполняются.
+
+### Обязательные status checks для merge
+
+Настройка репозитория (однократно): **Settings → Branches → branch protection rule для `main`**:
+
+1. Enable _Require a pull request before merging_;
+2. Enable _Require status checks to pass before merging_ и выбрать: `Lint`, `Typecheck`, `Unit tests`, `Build`, `Visual tests`;
+3. (опционально) _Require branches to be up to date before merging_.
+
+### Эталоны визуальных тестов
+
+Эталоны в `tests/visual/__screenshots__/` снимаются в **linux-окружении** (ubuntu, версия Playwright зафиксирована lock-файлом). Локальный запуск `npm run test:visual` на macOS может показывать расхождения по шрифтам — это ожидаемо. Обновление эталонов — только вручную через workflow **Update visual snapshots** (или локально на linux). Автоматическое обновление в CI запрещено.
 
 ## Релизы
 

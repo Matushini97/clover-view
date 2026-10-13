@@ -1,0 +1,55 @@
+name: Update visual snapshots
+
+# Ручное обновление эталонов скриншотов в linux-окружении CI.
+# Запуск: Actions → "Update visual snapshots" → Run workflow (ветка main).
+# Обновление эталоны в обычном CI никогда не выполняется автоматически.
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Ветка для коммита обновлённых эталонов
+        required: true
+        default: main
+
+permissions:
+  contents: write
+
+jobs:
+  update-snapshots:
+    name: Update snapshots (ubuntu)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Get Playwright version
+        id: pw-version
+        run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw-version.outputs.version }}
+      - if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - run: npx playwright test --update-snapshots
+      - name: Commit updated baselines
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add tests/visual/__screenshots__
+          if git diff --cached --quiet; then
+            echo "Baselines unchanged — nothing to commit"
+          else
+            git commit -m "test(visual): update baselines [skip ci]"
+            git push
+          fi
