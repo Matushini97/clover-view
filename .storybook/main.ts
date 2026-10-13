@@ -9,5 +9,11 @@ const config: StorybookConfig = {
     '@storybook/addon-mcp',
   ],
   framework: '@storybook/react-vite',
+  viteFinal: (config) => {
+    // Для GitHub Pages путь задаётся через STORYBOOK_BASE (например, /clover-view/).
+    // './' по умолчанию — работает и локально, и в поддиректории Pages.
+    config.base = process.env.STORYBOOK_BASE ?? './';
+    return config;
+  },
 };
 export default config;
