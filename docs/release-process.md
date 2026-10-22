@@ -40,10 +40,10 @@ Beta публикуется **из ветки `next`** — отдельной д
 
 Распределение ответственности:
 
-| Где выполняется                | Что                                                                                                                        |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
-| Разработчик, локально в `next` | `changeset pre enter beta` (однократно), `npm run changeset`, **`changeset version`** + коммит версий                      |
-| CI, на push в `next`           | проверки (lint/typecheck/unit/visual/build) и **`changeset publish --tag beta --no-git-tag`** — без git-записей и без push |
+| Где выполняется                | Что                                                                                                                                                             |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Разработчик, локально в `next` | `changeset pre enter beta` (однократно), `npm run changeset`, **`changeset version`** + коммит версий                                                           |
+| CI, на push в `next`           | проверки (lint/typecheck/unit/visual/build) и **`changeset publish --no-git-tag`** (в pre-режиме тег `beta` берётся из `pre.json`) — без git-записей и без push |
 
 ### 1. Создание ветки `next` (однократно)
 
@@ -78,7 +78,7 @@ Workflow на push в `next`:
 
 1. Guard'ы: есть `pre.json` с тегом `beta`; версия в `package.json` — prerelease с суффиксом `-beta`; нет неза-version'нутых changesets в `.changeset/*.md` (иначе — понятная ошибка с инструкцией);
 2. проверки и сборка;
-3. `changeset publish --tag beta --no-git-tag` — публикует только непубликованные версии (идемпотентно), dist-tag `beta`, `latest` не затрагивается, git-операций нет (`permissions: contents: read`).
+3. `changeset publish --no-git-tag` — в prerelease-режиме публикует автоматически с npm-тегом из `pre.json` (`beta`; явный `--tag` в pre-режиме запрещён changesets); только непубликованные версии (идемпотентно), `latest` не затрагивается, git-операций нет (`permissions: contents: read`).
 
 Ручной запуск: Actions → **Beta release** → Run workflow (ветка `next`); опция `dry_run` — только проверки и tarball-артефакт.
 
@@ -129,5 +129,5 @@ Beta-публикации идут с `--no-git-tag` (без git-тегов). Gi
 npm run changeset        # добавить changeset
 npx changeset pre enter beta  # включить prerelease-режим (в next)
 npx changeset version    # применить changesets: версии + changelog
-npx changeset publish --tag beta --no-git-tag  # публикация (обычно делает CI)
+npx changeset publish --no-git-tag  # публикация (обычно делает CI; в pre-режиме тег берётся из pre.json)
 ```

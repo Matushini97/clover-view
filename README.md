@@ -115,11 +115,11 @@ Pre-commit (husky + lint-staged): авто-fix lint/формата по staged-�
 
 ## CI (GitHub Actions)
 
-| Workflow                      | Триггер                       | Что делает                                                                                                                                                            |
-| ----------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ci.yml`                      | `pull_request` → `main`       | Install → параллельно Lint, Typecheck, Unit tests, Build (lib + Storybook + `npm pack`), Visual tests; при падении — артефакты (coverage, скриншоты-диффы, trace)     |
-| `update-visual-snapshots.yml` | `workflow_dispatch` (вручную) | Пересъёмка эталонов скриншотов на ubuntu и коммит в выбранную ветку (`[skip ci]`)                                                                                     |
-| `beta-release.yml`            | `push` → `next` (+ dispatch)  | Guard'ы prerelease-состояния → проверки (lint/typecheck/unit/visual/build) → `changeset publish --tag beta --no-git-tag`. Без git-записей. Требует secret `NPM_TOKEN` |
+| Workflow                      | Триггер                       | Что делает                                                                                                                                                                              |
+| ----------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ci.yml`                      | `pull_request` → `main`       | Install → параллельно Lint, Typecheck, Unit tests, Build (lib + Storybook + `npm pack`), Visual tests; при падении — артефакты (coverage, скриншоты-диффы, trace)                       |
+| `update-visual-snapshots.yml` | `workflow_dispatch` (вручную) | Пересъёмка эталонов скриншотов на ubuntu и коммит в выбранную ветку (`[skip ci]`)                                                                                                       |
+| `beta-release.yml`            | `push` → `next` (+ dispatch)  | Guard'ы prerelease-состояния → проверки (lint/typecheck/unit/visual/build) → `changeset publish --no-git-tag` (тег `beta` — из `pre.json`). Без git-записей. Требует secret `NPM_TOKEN` |
 
 Публикация пакета и деплой Storybook на обычном PR не выполняются.
 

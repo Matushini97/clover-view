@@ -98,7 +98,7 @@ jobs:
       - name: Guard — version is a beta prerelease
         run: |
           version=$(node -p "require('./package.json').version")
-          echo "version=$version" >> "$GITHUB_ENV"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
           if [[ ! "$version" =~ -beta(\.|$) ]]; then
             echo "::error::Версия '$version' не является beta-prerelease. Выполните локально: npx changeset version && git commit -am 'chore(release): $version'"
             exit 1
@@ -122,9 +122,10 @@ jobs:
         if: ${{ inputs.dry_run != true }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        # --no-git-tag: без git-операций (permissions: contents: read).
+        # В pre-режиме changesets сам публикует с тегом из pre.json ('beta') и
+        # запрещает явный --tag. --no-git-tag: без git-операций (permissions: contents: read).
         # Идемпотентно: уже опубликованные версии пропускаются, latest не затрагивается.
-        run: npx changeset publish --tag beta --no-git-tag
+        run: npx changeset publish --no-git-tag
 
       - name: Release report
         if: ${{ always() }}

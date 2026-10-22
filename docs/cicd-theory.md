@@ -274,7 +274,7 @@ Changesets поддерживает prerelease-режим:
 ```bash
 npx changeset pre enter beta
 npx changeset version   # версии вида 1.2.0-beta.0
-npx changeset publish --tag beta
+npx changeset publish   # в pre-режиме тег ('beta') берётся из pre.json; явный --tag запрещён
 ```
 
 - `pre enter beta` — включить режим; накопленные changesets станут beta-версиями.
@@ -306,6 +306,6 @@ Feature branch
 │      → npm publish stable   │
 └─────────────────────────────┘
 
-Ручной запуск (workflow_dispatch)
-      └─→ beta: pre enter beta → version → publish --tag beta
+Push в ветку `next`
+      └─→ beta: guard'ы → checks → publish (тег beta из pre.json)
 ```
