@@ -34,54 +34,100 @@
 
 Обычный merge в `main` **не публикует** напрямую — только обновляет Release PR. Публикация происходит при merge Release PR. Циклические запуски исключены: workflow проверяет наличие готовых changesets.
 
-## Beta-релиз (ручной)
+## Beta-релиз (ветка `next`)
 
-Триггер — только `workflow_dispatch` (кнопка в Actions → **Beta release**), stable-workflow beta не запускает.
+Beta публикуется **из ветки `next`** — отдельной долгоживущей prerelease-ветки. `main` beta-workflow не трогает, прямых push в `main` нет, Rulesets не ослабляются.
 
-Inputs workflow:
+Распределение ответственности:
 
-- `beta_id` — идентификатор prerelease (по умолчанию `beta`; суффикс версии и npm-тег);
-- `dry_run` — только проверки, сборка и tarball-артефакт, без публикации и коммита.
+| Где выполняется                | Что                                                                                                                        |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| Разработчик, локально в `next` | `changeset pre enter beta` (однократно), `npm run changeset`, **`changeset version`** + коммит версий                      |
+| CI, на push в `next`           | проверки (lint/typecheck/unit/visual/build) и **`changeset publish --tag beta --no-git-tag`** — без git-записей и без push |
 
-Workflow последовательно: lint/typecheck/unit/visual → build → `changeset pre enter <beta_id>` (если режим ещё не включён; повторный запуск переиспользует `pre.json`) → `changeset version` → коммит версий (`[skip ci]`) → `changeset publish --tag <beta_id>` → отчёт + tarball артефактом.
-
-Ручной эквивалент:
+### 1. Создание ветки `next` (однократно)
 
 ```bash
-npx changeset pre enter beta   # включить beta-режим (создаёт .changeset/pre.json — коммитится)
-npm run changeset              # накопить changesets (при необходимости)
-npm run version-packages       # версии вида X.Y.Z-beta.N + changelog
-npm run release -- --tag beta  # publish с npm-тегом beta (latest не затрагивается)
+git fetch origin
+git checkout -b next origin/main
+npx changeset pre enter beta          # создаёт .changeset/pre.json — коммитится только в next
+git add .changeset/pre.json
+git commit -m "chore: enter beta prerelease mode"
+git push -u origin next
 ```
 
-После beta:
+Push в `next` запускает workflow **Beta release**; первый запуск упадёт на guard'е «версия не prerelease» — это ожидаемо, пока не выполнено `changeset version`.
 
-- **вернуться к stable**: `npx changeset pre exit` → `npm run version-packages` (накопленные changesets становятся стабильной версией) → merge Release PR → публикация `latest`;
-- **ещё beta**: оставаться в режиме, следующий version даст `X.Y.Z-beta.N+1`.
+### 2. Добавление changesets
+
+В `next` (или в feature-ветке с merge в `next`): `npm run changeset` → коммитить markdown из `.changeset/` вместе с кодом.
+
+### 3. Подготовка публикации (version — руками, в `next`)
+
+```bash
+npx changeset version    # X.Y.Z-beta.N+1, changelog; changesets архивируются в .changeset/pre/
+git commit -am "chore(release): X.Y.Z-beta.N+1"
+git push                 # push в next → CI публикует
+```
+
+`changeset version` в prerelease-режиме увеличивает только prerelease-суффикс (`0.1.0-beta.0` → `0.1.0-beta.1`), потреблённые changesets переносятся в `.changeset/pre/` (нужны для финальной стабильной версии).
+
+### 4. Публикация (CI)
+
+Workflow на push в `next`:
+
+1. Guard'ы: есть `pre.json` с тегом `beta`; версия в `package.json` — prerelease с суффиксом `-beta`; нет неза-version'нутых changesets в `.changeset/*.md` (иначе — понятная ошибка с инструкцией);
+2. проверки и сборка;
+3. `changeset publish --tag beta --no-git-tag` — публикует только непубликованные версии (идемпотентно), dist-tag `beta`, `latest` не затрагивается, git-операций нет (`permissions: contents: read`).
+
+Ручной запуск: Actions → **Beta release** → Run workflow (ветка `next`); опция `dry_run` — только проверки и tarball-артефакт.
+
+### 5. Установка beta
+
+```bash
+npm install @matushini97/clover-view-ui@beta
+```
+
+`npm install @matushini97/clover-view-ui` без тега продолжает ставить стабильную версию (`latest`).
+
+### 6. Завершение prerelease → стабильный релиз
+
+Выполняется **вручную**, автоматического merge `next` → `main` нет:
+
+```bash
+# в ветке next
+npx changeset pre exit    # выйти из prerelease-режима
+npx changeset version     # X.Y.Z-beta.N → X.Y.Z (архив .changeset/pre/ применяется повторно)
+git commit -am "chore(release): X.Y.Z"
+git push
+```
+
+Затем PR `next` → `main` (в нём НЕ должно остаться `.changeset/pre.json` — после `pre exit` + `version` он удаляется) и публикация `latest` из `main` по stable-процессу.
 
 ### Гарантии разделения beta / stable
 
-|           | beta                          | stable                           |
-| --------- | ----------------------------- | -------------------------------- |
-| Триггер   | только `workflow_dispatch`    | push/merge в `main` (Release PR) |
-| npm-тег   | `beta`                        | `latest`                         |
-| Версия    | `X.Y.Z-beta.N`                | `X.Y.Z`                          |
-| pre-режим | `pre.json` с `"mode": "beta"` | pre-режим выключен               |
-
-`changeset publish` в beta-режиме публикует только с тегом `beta` и не создаёт стабильных версий; stable-workflow не запускается из beta-workflow.
+|           | beta                                           | stable                           |
+| --------- | ---------------------------------------------- | -------------------------------- |
+| Ветка     | `next`                                         | `main`                           |
+| Триггер   | push в `next` (+ ручной dispatch)              | push/merge в `main` (Release PR) |
+| npm-тег   | `beta`                                         | `latest`                         |
+| Версия    | `X.Y.Z-beta.N`                                 | `X.Y.Z`                          |
+| pre-режим | `pre.json` с `"tag": "beta"` (только в `next`) | pre-режим выключен               |
+| git push  | не выполняется (`contents: read`)              | не выполняется в обход PR        |
 
 ## Git-теги и GitHub Releases
 
-Каждая публикация (beta и stable) создаёт git-тег `@matushini97/clover-view-ui@<version>`; stable дополнительно оформляется GitHub Release с changelog.
+Beta-публикации идут с `--no-git-tag` (без git-тегов). Git-теги `@matushini97/clover-view-ui@<version>` и GitHub Releases создаются на stable-релизах.
 
 ## Secrets
 
-Для публикации в npm нужен `NPM_TOKEN` (Automation token с правами publish на scoped-пакет) в secrets репозитория. Beta- и stable-workflows используют минимально необходимые `permissions` (`contents: write`, `id-token: write` для provenance).
+Для публикации в npm нужен `NPM_TOKEN` (Automation token с правами publish на scoped-пакет) в secrets репозитория. Beta-workflow использует `permissions: contents: read` — записей в git нет.
 
 ## Ручные команды (локально)
 
 ```bash
 npm run changeset        # добавить changeset
-npm run version-packages # применить changesets: версии + changelog
-npm run release          # build + changeset publish (нужен npm login/token)
+npx changeset pre enter beta  # включить prerelease-режим (в next)
+npx changeset version    # применить changesets: версии + changelog
+npx changeset publish --tag beta --no-git-tag  # публикация (обычно делает CI)
 ```

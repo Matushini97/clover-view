@@ -115,11 +115,11 @@ Pre-commit (husky + lint-staged): авто-fix lint/формата по staged-�
 
 ## CI (GitHub Actions)
 
-| Workflow                      | Триггер                       | Что делает                                                                                                                                                                         |
-| ----------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ci.yml`                      | `pull_request` → `main`       | Install → параллельно Lint, Typecheck, Unit tests, Build (lib + Storybook + `npm pack`), Visual tests; при падении — артефакты (coverage, скриншоты-диффы, trace)                  |
-| `update-visual-snapshots.yml` | `workflow_dispatch` (вручную) | Пересъёмка эталонов скриншотов на ubuntu и коммит в выбранную ветку (`[skip ci]`)                                                                                                  |
-| `beta-release.yml`            | `workflow_dispatch` (вручную) | Полная проверка (lint/typecheck/unit/visual/build) → Changesets prerelease (`beta`) → публикация в npm с тегом `beta` → коммит версий + отчёт-артефакт. Требует secret `NPM_TOKEN` |
+| Workflow                      | Триггер                       | Что делает                                                                                                                                                            |
+| ----------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ci.yml`                      | `pull_request` → `main`       | Install → параллельно Lint, Typecheck, Unit tests, Build (lib + Storybook + `npm pack`), Visual tests; при падении — артефакты (coverage, скриншоты-диффы, trace)     |
+| `update-visual-snapshots.yml` | `workflow_dispatch` (вручную) | Пересъёмка эталонов скриншотов на ubuntu и коммит в выбранную ветку (`[skip ci]`)                                                                                     |
+| `beta-release.yml`            | `push` → `next` (+ dispatch)  | Guard'ы prerelease-состояния → проверки (lint/typecheck/unit/visual/build) → `changeset publish --tag beta --no-git-tag`. Без git-записей. Требует secret `NPM_TOKEN` |
 
 Публикация пакета и деплой Storybook на обычном PR не выполняются.
 
@@ -137,12 +137,27 @@ Pre-commit (husky + lint-staged): авто-fix lint/формата по staged-�
 
 ## Релизы
 
-Версионирование — SemVer через [Changesets](https://github.com/changesets/changesets):
+Версионирование — SemVer через [Changesets](https://github.com/changesets/changesets). Схема: **`main` → стабильные релизы (`latest`)**, **`next` → beta (`X.Y.Z-beta.N`, dist-tag `beta`)**.
 
-1. `npm run changeset` — описать изменение (patch / minor / major);
-2. закоммитить файл из `.changeset/`;
-3. после merge в `main` версии и changelog обновляются автоматически.
+### Beta (ветка `next`)
+
+```bash
+# один раз
+git checkout -b next origin/main
+npx changeset pre enter beta && git add .changeset/pre.json && git commit -m "chore: enter beta mode" && git push -u origin next
+
+# каждый релиз
+npm run changeset                      # описать изменение
+npx changeset version                  # X.Y.Z-beta.N+1 (+ changelog)
+git commit -am "chore(release): X.Y.Z-beta.N+1" && git push   # → CI публикует
+```
+
+Установка beta: `npm install @matushini97/clover-view-ui@beta`. Без тега npm ставит стабильную `latest`.
+
+Завершение prerelease (руками, без автомерджа): в `next` — `npx changeset pre exit && npx changeset version`, затем PR `next` → `main`. Подробно — [docs/release-process.md](docs/release-process.md).
+
+### Stable
+
+Stable-workflow (Changesets Release PR → publish `latest`) настраивается отдельно (Этап 11). Обычный merge в `main` ничего не публикует.
 
 Подробная схема CI/CD — в [docs/cicd-theory.md](docs/cicd-theory.md).
-
-test beta-publish
