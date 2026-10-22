@@ -36,9 +36,16 @@
 
 ## Beta-релиз (ручной)
 
-Триггер — только `workflow_dispatch` (кнопка в Actions), stable-workflow beta не запускает.
+Триггер — только `workflow_dispatch` (кнопка в Actions → **Beta release**), stable-workflow beta не запускает.
 
-Режим prerelease Changesets:
+Inputs workflow:
+
+- `beta_id` — идентификатор prerelease (по умолчанию `beta`; суффикс версии и npm-тег);
+- `dry_run` — только проверки, сборка и tarball-артефакт, без публикации и коммита.
+
+Workflow последовательно: lint/typecheck/unit/visual → build → `changeset pre enter <beta_id>` (если режим ещё не включён; повторный запуск переиспользует `pre.json`) → `changeset version` → коммит версий (`[skip ci]`) → `changeset publish --tag <beta_id>` → отчёт + tarball артефактом.
+
+Ручной эквивалент:
 
 ```bash
 npx changeset pre enter beta   # включить beta-режим (создаёт .changeset/pre.json — коммитится)

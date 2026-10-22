@@ -115,10 +115,11 @@ Pre-commit (husky + lint-staged): авто-fix lint/формата по staged-�
 
 ## CI (GitHub Actions)
 
-| Workflow                      | Триггер                       | Что делает                                                                                                                                                        |
-| ----------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ci.yml`                      | `pull_request` → `main`       | Install → параллельно Lint, Typecheck, Unit tests, Build (lib + Storybook + `npm pack`), Visual tests; при падении — артефакты (coverage, скриншоты-диффы, trace) |
-| `update-visual-snapshots.yml` | `workflow_dispatch` (вручную) | Пересъёмка эталонов скриншотов на ubuntu и коммит в выбранную ветку (`[skip ci]`)                                                                                 |
+| Workflow                      | Триггер                       | Что делает                                                                                                                                                                         |
+| ----------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ci.yml`                      | `pull_request` → `main`       | Install → параллельно Lint, Typecheck, Unit tests, Build (lib + Storybook + `npm pack`), Visual tests; при падении — артефакты (coverage, скриншоты-диффы, trace)                  |
+| `update-visual-snapshots.yml` | `workflow_dispatch` (вручную) | Пересъёмка эталонов скриншотов на ubuntu и коммит в выбранную ветку (`[skip ci]`)                                                                                                  |
+| `beta-release.yml`            | `workflow_dispatch` (вручную) | Полная проверка (lint/typecheck/unit/visual/build) → Changesets prerelease (`beta`) → публикация в npm с тегом `beta` → коммит версий + отчёт-артефакт. Требует secret `NPM_TOKEN` |
 
 Публикация пакета и деплой Storybook на обычном PR не выполняются.
 
@@ -143,3 +144,5 @@ Pre-commit (husky + lint-staged): авто-fix lint/формата по staged-�
 3. после merge в `main` версии и changelog обновляются автоматически.
 
 Подробная схема CI/CD — в [docs/cicd-theory.md](docs/cicd-theory.md).
+
+test beta-publish

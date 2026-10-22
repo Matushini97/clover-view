@@ -1,0 +1,179 @@
+name: Beta release
+
+# Ручной релиз beta-версии в npm с тегом `beta`.
+# Stable-публикации из этого workflow не выполняется — только prerelease.
+on:
+  workflow_dispatch:
+    inputs:
+      beta_id:
+        description: Идентификатор prerelease (npm-тег и суффикс версии)
+        required: true
+        default: beta
+      dry_run:
+        description: Только собрать и показать версию, без публикации и коммита
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: beta-release
+  cancel-in-progress: false
+
+jobs:
+  beta-release:
+    name: Beta release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Validate beta_id
+        env:
+          BETA_ID: ${{ inputs.beta_id }}
+        run: |
+          if [[ ! "$BETA_ID" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+            echo "beta_id допускает только lowercase latin, цифры и дефисы: '$BETA_ID'"
+            exit 1
+          fi
+
+      - name: Check NPM_TOKEN
+        if: ${{ !inputs.dry_run }}
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "Secret NPM_TOKEN не задан. Добавьте его в Settings → Secrets → Actions."
+            echo "Для dry_run публикация не требуется."
+            exit 1
+          fi
+
+      - run: npm ci
+
+      - name: Lint
+        run: |
+          npm run lint
+          npm run format:check
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test -- --project=unit
+
+      - name: Get Playwright version
+        id: pw-version
+        run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw-version.outputs.version }}
+
+      - if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Visual tests
+        run: npm run test:visual
+
+      - name: Build library
+        run: npm run build
+
+      - name: Enter prerelease mode
+        env:
+          BETA_ID: ${{ inputs.beta_id }}
+        run: |
+          if [ -f .changeset/pre.json ]; then
+            echo "Уже в prerelease-режиме:"
+            cat .changeset/pre.json
+            current_tag=$(node -p "require('./.changeset/pre.json').tag")
+            if [ "$current_tag" != "$BETA_ID" ]; then
+              echo "Ожидался тег '$BETA_ID', а в pre.json — '$current_tag'. Выйдите из режима вручную: npx changeset pre exit"
+              exit 1
+            fi
+          else
+            npx changeset pre enter "$BETA_ID"
+          fi
+
+      - name: Version packages
+        run: npx changeset version
+
+      - name: Read new version
+        id: version
+        run: |
+          version=$(node -p "require('./package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Будущая версия: $version"
+
+      - name: Pack tarball (artifact)
+        run: npm pack --pack-destination "$RUNNER_TEMP"
+
+      - name: Commit version bump
+        if: ${{ !inputs.dry_run }}
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json CHANGELOG.md .changeset
+          if git diff --cached --quiet; then
+            echo "Изменения версий нет — версия уже сформирована ранее"
+          else
+            git commit -m "chore(release): ${VERSION} [skip ci]"
+            git push origin "HEAD:${{ github.ref_name }}"
+          fi
+
+      - name: Publish to npm
+        if: ${{ !inputs.dry_run }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          BETA_ID: ${{ inputs.beta_id }}
+        # changeset publish идемпотентен: уже опубликованные версии пропускаются
+        run: npx changeset publish --tag "$BETA_ID"
+
+      - name: Release report
+        if: ${{ always() }}
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          BETA_ID: ${{ inputs.beta_id }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          SHA: ${{ github.sha }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          {
+            echo "# Beta release report"
+            echo ""
+            echo "- Ветка: \`${{ github.ref_name }}\`"
+            echo "- Commit: \`${SHA}\`"
+            echo "- Версия: \`${VERSION:-n/a}\`"
+            echo "- npm-тег: \`${BETA_ID}\`"
+            echo "- Dry run: \`${DRY_RUN}\`"
+            echo "- Результат: ${JOB_STATUS}"
+          } > "$RUNNER_TEMP/release-report.md"
+          cat "$RUNNER_TEMP/release-report.md"
+
+      - name: Upload release artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: beta-release-${{ steps.version.outputs.version || 'unknown' }}
+          path: |
+            ${{ runner.temp }}/*.tgz
+            ${{ runner.temp }}/release-report.md
+          retention-days: 30
+          if-no-files-found: ignore
